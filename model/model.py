@@ -119,3 +119,55 @@ class Model:
 
                     self._ricorsione(vicino, parziale, peso)
                     parziale.pop()
+
+# data1 == data2   -> date uguali
+# data1 != data2   -> date diverse
+# data1 > data2    -> data1 è successiva
+# data1 < data2    -> data1 è precedente
+# data1 >= data2   -> successiva o uguale
+# data1 <= data2   -> precedente o uguale
+
+# if data_inizio <= data <= data_fine:
+#     print("Data valida")
+
+# differenza = data2 - data1
+
+# Giorni
+# differenza.days
+
+# Secondi
+# differenza.total_seconds()
+
+# ===========================================
+# ESTRARRE ANNO, MESE, GIORNO
+# ===========================================
+
+# data.year
+# data.month
+# data.day
+
+# data.hour
+# data.minute
+# data.second
+
+# ===========================================
+# CONTROLLI PIÙ USATI
+# ===========================================
+
+# Se la data è nel passato
+# if data < datetime.now():
+
+# Se la data è nel futuro
+# if data > datetime.now():
+
+# Se è oggi
+# if data.date() == datetime.today().date():
+
+# Se anno maggiore di 2000
+# if data.year > 2000:
+
+# Se il mese è gennaio
+# if data.month == 1:
+
+# Se il giorno è 15
+# if data.day == 15:

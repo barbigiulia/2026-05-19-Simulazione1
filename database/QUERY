@@ -1,0 +1,159 @@
+1) Artisti più acquistati
+
+Richiesta:
+Dato un genere musicale, visualizzare tutti gli artisti del genere ordinati per numero di brani acquistati.
+
+SELECT ar.ArtistId,
+       ar.Name,
+       SUM(il.Quantity) AS TotAcquisti
+FROM Artist ar,
+     Album al,
+     Track t,
+     InvoiceLine il
+WHERE ar.ArtistId = al.ArtistId
+AND al.AlbumId = t.AlbumId
+AND t.TrackId = il.TrackId
+AND t.GenreId = ?
+GROUP BY ar.ArtistId
+ORDER BY TotAcquisti DESC;
+
+2) Clienti che hanno acquistato un artista
+
+Richiesta --> Selezionato un artista, mostrare tutti i clienti che hanno acquistato almeno un suo brano.
+
+SELECT DISTINCT c.CustomerId,
+                c.FirstName,
+                c.LastName
+FROM Customer c,
+     Invoice i,
+     InvoiceLine il,
+     Track t,
+     Album al
+WHERE c.CustomerId=i.CustomerId
+AND i.InvoiceId=il.InvoiceId
+AND il.TrackId=t.TrackId
+AND t.AlbumId=al.AlbumId
+AND al.ArtistId=?;
+
+-------------------------------------
+3) Numero di album per artista
+SELECT a.ArtistId,
+       a.Name,
+       COUNT(al.AlbumId) as NumAlbum
+FROM Artist a,
+     Album al
+WHERE a.ArtistId=al.ArtistId
+GROUP BY a.ArtistId
+ORDER BY NumAlbum DESC;
+-------------------------------------
+4) Durata totale dei brani di un artista
+SELECT a.Name,
+       SUM(t.Milliseconds) as Durata
+FROM Artist a,
+     Album al,
+     Track t
+WHERE a.ArtistId=al.ArtistId
+AND al.AlbumId=t.AlbumId
+GROUP BY a.ArtistId;
+-------------------------------------
+5) Artisti che hanno almeno un brano Rock
+SELECT DISTINCT a.ArtistId,
+                a.Name
+FROM Artist a,
+     Album al,
+     Track t
+WHERE a.ArtistId=al.ArtistId
+AND al.AlbumId=t.AlbumId
+AND t.GenreId=?;
+-------------------------------------
+6) Cliente che ha speso di più
+SELECT c.CustomerId,
+       c.FirstName,
+       c.LastName,
+       SUM(i.Total) as Spesa
+FROM Customer c,
+     Invoice i
+WHERE c.CustomerId=i.CustomerId
+GROUP BY c.CustomerId
+ORDER BY Spesa DESC;
+-------------------------------------
+7) Numero di clienti per artista
+
+Molto probabile all'esame
+
+SELECT ar.ArtistId,
+       ar.Name,
+       COUNT(DISTINCT i.CustomerId) as NumClienti
+FROM Artist ar,
+     Album al,
+     Track t,
+     InvoiceLine il,
+     Invoice i
+WHERE ar.ArtistId=al.ArtistId
+AND al.AlbumId=t.AlbumId
+AND t.TrackId=il.TrackId
+AND il.InvoiceId=i.InvoiceId
+GROUP BY ar.ArtistId;
+-------------------------------------
+8) Coppie di artisti acquistati dallo stesso cliente
+
+SELECT DISTINCT
+A.ArtistId,
+B.ArtistId,
+I.CustomerId
+FROM Invoice I,
+     InvoiceLine IL1,
+     InvoiceLine IL2,
+     Track T1,
+     Track T2,
+     Album AL1,
+     Album AL2
+WHERE I.InvoiceId=IL1.InvoiceId
+AND I.InvoiceId=IL2.InvoiceId
+AND IL1.TrackId=T1.TrackId
+AND IL2.TrackId=T2.TrackId
+AND T1.AlbumId=AL1.AlbumId
+AND T2.AlbumId=AL2.AlbumId
+AND AL1.ArtistId<>AL2.ArtistId;
+-------------------------------------
+9) Brani più acquistati
+SELECT t.TrackId,
+       t.Name,
+       SUM(il.Quantity) as Vendite
+FROM Track t,
+     InvoiceLine il
+WHERE t.TrackId=il.TrackId
+GROUP BY t.TrackId
+ORDER BY Vendite DESC;
+-------------------------------------
+10) Album con più brani
+SELECT al.AlbumId,
+       al.Title,
+       COUNT(t.TrackId) as NumBrani
+FROM Album al,
+     Track t
+WHERE al.AlbumId=t.AlbumId
+GROUP BY al.AlbumId;
+-------------------------------------
+11) Playlist che contengono un artista
+SELECT DISTINCT p.PlaylistId,
+                p.Name
+FROM Playlist p,
+     PlaylistTrack pt,
+     Track t,
+     Album al
+WHERE p.PlaylistId=pt.PlaylistId
+AND pt.TrackId=t.TrackId
+AND t.AlbumId=al.AlbumId
+AND al.ArtistId=?;
+-------------------------------------
+12) Numero di generi per artista
+SELECT a.ArtistId,
+       a.Name,
+       COUNT(DISTINCT t.GenreId)
+FROM Artist a,
+     Album al,
+     Track t
+WHERE a.ArtistId=al.ArtistId
+AND al.AlbumId=t.AlbumId
+GROUP BY a.ArtistId;
