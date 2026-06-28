@@ -1,6 +1,4 @@
 import networkx as nx
-from websockets.headers import parse_extension_item
-
 from database.DAO import DAO
 
 
@@ -37,10 +35,10 @@ class Model:
 
 
         pop = dict()
-        popolarita = DAO.getPopolarita()
+        popolarita = DAO.getPopolarita(genereID)
         for p in popolarita:
             if p[0] not in pop:
-                pop[p[0]] = p[1]
+                pop[p[0]] = int(p[1])
 
         nodi = list(self._grafo.nodes)
         for i in range(len(nodi)):

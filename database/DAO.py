@@ -68,35 +68,35 @@ class DAO:
         conn = DBConnect.get_connection()
         results = []
         cursor = conn.cursor(dictionary=True)
-        query = """ SELECT  i2.CustomerId, a.ArtistId
-                    FROM album a, track t, invoiceline i, invoice i2, track t2, album a2
-                    WHERE a.AlbumId = t.AlbumId
-                    AND t.TrackId = i.TrackId
-                    AND i.InvoiceId = i2.InvoiceId
-                    AND a.ArtistId = a2.ArtistId
-                    AND a2.AlbumId = t2.AlbumId
-                    AND t2.GenreId = %s
+        query = """ SELECT i2.CustomerId, a.ArtistId, count(*) as ntracks
+                FROM album a, track t, invoiceline i, invoice i2
+                WHERE a.AlbumId = t.AlbumId
+                AND t.TrackId = i.TrackId
+                AND i.InvoiceId = i2.InvoiceId
+                AND t.GenreId = %s
+                GROUP BY i2.CustomerId, a.ArtistId
                     """
         cursor.execute(query, (genereID,))
         for row in cursor:
-            results.append((row["CustomerId"], row["ArtistId"]))
+            results.append((row["CustomerId"], row["ArtistId"],row["ntracks"]))
 
         cursor.close()
         conn.close()
         return results
 
     @staticmethod
-    def getPopolarita():
+    def getPopolarita(genereID):
         conn = DBConnect.get_connection()
         results = []
         cursor = conn.cursor(dictionary=True)
-        query = """ select  a.ArtistId , sum(i.Quantity ) as popolarita
-                    from album a , track t , invoiceline i 
-                    where a.AlbumId =t.AlbumId
-                    and t.TrackId =i.TrackId 
-                    group by a.ArtistId
+        query = """ SELECT a.ArtistId, sum(i.Quantity) as popolarita
+                FROM album a, track t, invoiceline i
+                WHERE a.AlbumId = t.AlbumId
+                AND t.TrackId = i.TrackId
+                AND t.GenreId = %s
+                GROUP BY a.ArtistId
                                 """
-        cursor.execute(query)
+        cursor.execute(query,(genereID,))
         for row in cursor:
             results.append((row["ArtistId"], row["popolarita"]))
         cursor.close()
