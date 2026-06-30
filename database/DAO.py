@@ -1,5 +1,5 @@
 from database.DB_connect import DBConnect
-from model.artista import Artista
+from model.cliente import Cliente
 
 
 class DAO:
@@ -7,99 +7,113 @@ class DAO:
         pass
 
     @staticmethod
-    def getGeneri():
+    def getCountries():
         conn = DBConnect.get_connection()
         results = []
         cursor = conn.cursor(dictionary=True)
-        query = """ select g.GenreId , g.Name 
-                    from genre g 
+        query = """  select distinct c.Country 
+                    from customer c 
+                    order by c.Country 
                     """
         cursor.execute(query)
         for row in cursor:
-            results.append((row["GenreId"], row["Name"]))
+            results.append(row["Country"])
 
         cursor.close()
         conn.close()
         return results
 
     @staticmethod
-    def getArtisti(genereID):
+    def getNodes(country):
         conn = DBConnect.get_connection()
         results = []
         cursor = conn.cursor(dictionary=True)
-        query = """ select  distinct a2.*
-                    from artist a2 , album a , track t 
-                    where a2.ArtistId =a.ArtistId 
-                    and a.AlbumId =t.AlbumId
-                    and t.GenreId = %s
-                       """
-        cursor.execute(query,(genereID,))
-        for row in cursor:
-            results.append(Artista(**row))
-
-        cursor.close()
-        conn.close()
-        return results
-
-
-
-    @staticmethod
-    def getNodes(genereID):
-        conn = DBConnect.get_connection()
-        results = []
-        cursor = conn.cursor(dictionary=True)
-        query = """ select distinct a.ArtistId , a.Name 
-                    from artist a , album a2 , track t 
-                    where a.ArtistId =a2.ArtistId 
-                    and a2.AlbumId =t.AlbumId 
-                    and t.GenreId = %s
+        query = """  select distinct c.*
+                    from customer c , invoice i 
+                    where c.CustomerId =i.CustomerId 
+                    and c.Country =%s
                         """
-        cursor.execute(query,(genereID,))
+        cursor.execute(query,(country,))
         for row in cursor:
-            results.append(Artista(**row))
-
-        cursor.close()
-        conn.close()
-        return results
-
-    @ staticmethod
-
-    def getAcquistiClienti(genereID):
-        conn = DBConnect.get_connection()
-        results = []
-        cursor = conn.cursor(dictionary=True)
-        query = """ SELECT i2.CustomerId, a.ArtistId, count(*) as ntracks
-                FROM album a, track t, invoiceline i, invoice i2
-                WHERE a.AlbumId = t.AlbumId
-                AND t.TrackId = i.TrackId
-                AND i.InvoiceId = i2.InvoiceId
-                AND t.GenreId = %s
-                GROUP BY i2.CustomerId, a.ArtistId
-                    """
-        cursor.execute(query, (genereID,))
-        for row in cursor:
-            results.append((row["CustomerId"], row["ArtistId"],row["ntracks"]))
+            results.append(Cliente(**row))
 
         cursor.close()
         conn.close()
         return results
 
     @staticmethod
-    def getPopolarita(genereID):
+    def getFatturato(country):
         conn = DBConnect.get_connection()
-        results = []
+        results = {}  # serve un DIZIONARIO
         cursor = conn.cursor(dictionary=True)
-        query = """ SELECT a.ArtistId, sum(i.Quantity) as popolarita
-                FROM album a, track t, invoiceline i
-                WHERE a.AlbumId = t.AlbumId
-                AND t.TrackId = i.TrackId
-                AND t.GenreId = %s
-                GROUP BY a.ArtistId
-                                """
-        cursor.execute(query,(genereID,))
+        query = """  select i.CustomerId , sum(i.Total ) as fatturato
+                    from customer c , invoice i 
+                    where c.CustomerId = i.CustomerId 
+                    and c.Country = %s
+                    group by i.CustomerId
+                            """
+        cursor.execute(query, (country,))
         for row in cursor:
-            results.append((row["ArtistId"], row["popolarita"]))
+            results[row["CustomerId"]] = float(row["fatturato"])  # conversione !!
+
+        # sum() in sql ritorna decimal.Decimal  --> devo convertirlo subito in float
         cursor.close()
         conn.close()
         return results
 
+    @staticmethod
+    def getCoppie(country):
+        conn = DBConnect.get_connection()
+        results = []
+        cursor = conn.cursor(dictionary=True)
+        query = """  select distinct  c1.CustomerId as c1 , c2.CustomerId as c2
+                    from artist a1 , album al1, track t1, invoiceline i1, 
+                    invoice in1, customer c1, artist a2 , album al2, track t2, invoiceline i2, 
+                    invoice in2, customer c2
+                    where in1.CustomerId != in2.CustomerId 
+                    and a1.ArtistId =al1.ArtistId 
+                    and al1.AlbumId = t1.AlbumId
+                    and t1.TrackId =i1.TrackId 
+                    and i1.InvoiceId =in1.InvoiceId 
+                    and in1.CustomerId = c1.CustomerId 
+                    and a2.ArtistId =al2.ArtistId 
+                    and al2.AlbumId = t2.AlbumId
+                    and t2.TrackId =i2.TrackId 
+                    and i2.InvoiceId =in2.InvoiceId 
+                    and in2.CustomerId = c2.CustomerId 
+                    and a1.ArtistId = a2.ArtistId 
+                    and c1.Country =%s
+                    and c2.Country =%s
+                    and c1.CustomerId < c2.CustomerId 
+                            """
+        cursor.execute(query, (country,country))
+        for row in cursor:
+            results.append((row["c1"], row["c2"]))
+
+        cursor.close()
+        conn.close()
+        return results
+
+    @staticmethod
+    def getArtistiPerCliente(country):
+        """Ritorna una lista di tuple (CustomerId, ArtistId) -- una riga per ogni
+           combinazione cliente-artista acquistato, nel paese indicato"""
+        conn = DBConnect.get_connection()
+        results = []
+        cursor = conn.cursor(dictionary=True)
+        query = """ select distinct c.CustomerId, ar.ArtistId
+                    from customer c, invoice i, invoiceline il, track t, album al, artist ar
+                    where c.CustomerId = i.CustomerId
+                    and i.InvoiceId = il.InvoiceId
+                    and il.TrackId = t.TrackId
+                    and t.AlbumId = al.AlbumId
+                    and al.ArtistId = ar.ArtistId
+                    and c.Country = %s
+                """
+        cursor.execute(query, (country,))
+        for row in cursor:
+            results.append((row["CustomerId"], row["ArtistId"]))
+
+        cursor.close()
+        conn.close()
+        return results

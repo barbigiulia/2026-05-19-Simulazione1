@@ -24,19 +24,20 @@ class View(ft.UserControl):
         self._page.controls.append(self._title)
 
 
-        self._ddGenre = ft.Dropdown(label="Genere", width=250, options=self._controller.fillDDGenre())
+        self._ddCountry = ft.Dropdown(label="Country", width=250, options=self._controller.fillCountry())
 
         self._btnCreaGrafo = ft.ElevatedButton(text="Crea Grafo",
                                                on_click=self._controller.handleCreaGrafo, width=250)
+        self._btnStampaInfo = ft.ElevatedButton(text="Stampa Info", on_click=self._controller.stampaInfo, width=250)
 
-        row1 = ft.Row([self._ddGenre, self._btnCreaGrafo],
+        row1 = ft.Row([self._ddCountry, self._btnCreaGrafo,self._btnStampaInfo],
                       alignment=ft.MainAxisAlignment.CENTER)
         self._page.controls.append(row1)
 
-        self._ddArtist = ft.Dropdown(label="Artist", width=250, options=[])
-        self._btnCreaGrafo = ft.ElevatedButton(text="Trova Cammino", on_click=self._controller.handleCammino, width=250)
+        self._ddClienti = ft.Dropdown(label="Clienti", width=250, options=[])
+        self._btntrovaSeq = ft.ElevatedButton(text="Trova sequenza clienti", on_click=self._controller.trovaSeq, width=250)
 
-        row2 = ft.Row([self._ddArtist, self._btnCreaGrafo],
+        row2 = ft.Row([self._ddClienti, self._btntrovaSeq],
                       alignment=ft.MainAxisAlignment.CENTER)
         self._page.controls.append(row2)
 

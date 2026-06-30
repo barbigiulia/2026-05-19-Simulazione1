@@ -8,60 +8,67 @@ class Controller:
         # the model, which implements the logic of the program and holds the data
         self._model = model
 
-    def fillDDGenre(self):
+    def fillCountry(self):
         res = []
-        for g in self._model.getGeneri():
-            res.append(ft.dropdown.Option(text=g[1],
-                                          key= g[0] ))
+        for c in self._model.getCountries():
+            res.append(ft.dropdown.Option(c))
         return res
 
-
     def handleCreaGrafo(self, e):
-        genereID = self._view._ddGenre.value
-
-        if genereID is None :
-            self._view.txt_result.controls.append(ft.Text("Selezionare un genere", color="red"))
+        country = self._view._ddCountry.value
+        if country is None:
+            self._view.txt_result.controls.append(ft.Text("Selezionare un paese", color="red"))
             self._view.update_page()
             return
-        try:
-            genreID = int(genereID)
-        except ValueError:
-            self._view.txt_result.controls.append(ft.Text("Genere non valido nel database", color="red"))
-            self._view.update_page()
-            return
-
-        self._model.buildGraph(genreID)
-        self._view._ddArtist.options = self.getArtist(genereID)
+        self._model.buildGraph(country)
         self._view.txt_result.clean()
         self._view.txt_result.controls.append(ft.Text("Grafo creato correttamente", color="green"))
         self._view.txt_result.controls.append(ft.Text(f"Numero di nodi: {self._model.getNumNodi()}", color="green"))
         self._view.txt_result.controls.append(ft.Text(f"Numero di archi: {self._model.getNumArchi()}", color="green"))
 
-        tupla = self._model.getMaggioreInfluenza()
-        self._view.txt_result.controls.append(ft.Text(f"Artista con maggiore influenza: {tupla[0].Name} con influenza: {tupla[1]}", color="purple"))
-        for arco in self._model.archiPesati():
-            self._view.txt_result.controls.append(
-                ft.Text(f"{arco[0]} -> {arco[1]}    peso: {arco[2]}", color="purple"))
-
+        # aggiorna il dropdown dei clienti ora che il grafo esiste
+        self._view._ddClienti.options = self.fillClienti()
         self._view.update_page()
 
-    def getArtist(self,genereID):
-        res=[]
-        for a in self._model.getArtisti(genereID):
-            res.append(ft.dropdown.Option(text=a.Name, key= a.ArtistId))
+
+
+
+    def stampaInfo(self,e):
+        piuInfluente, top5 = self._model.getPiuInfluente()
+        country = self._view._ddCountry.value
+        if country is None:
+            self._view.txt_result.controls.append(ft.Text("Selezionare un paese", color="red"))
+            self._view.update_page()
+            return
+        self._view.txt_result.controls.append(ft.Text(f"Il cliente più influente è {piuInfluente[0]}:"
+                                                      f" influenza pari a {piuInfluente[1]}", color="pink"))
+        self._view.txt_result.controls.append(ft.Text("Top 5 archi con peso maggiore", color="purple"))
+        for u,v,peso in top5:
+            self._view.txt_result.controls.append(ft.Text(f"{u} - {v}  : peso {peso}"))
+        self._view.update_page()
+
+    def fillClienti(self):
+        res =[]
+        for n in self._model.fillClienti():
+            res.append(ft.dropdown.Option(text=str(n), key=str(n.CustomerId)))
         return res
-
-
-    def handleCammino(self,e):
-        self._view.txt_result.clean()
-        artistaID = self._view._ddArtist.value
-        if artistaID is None:
-            self._view.txt_result.controls.append(ft.Text("Selezionare un artista", color="red"))
+    def trovaSeq(self,e):
+        idCliente = self._view._ddClienti.value
+        if idCliente is None:
+            self._view.txt_result.controls.append(ft.Text("Selezionare un cliente", color="red"))
             self._view.update_page()
             return
 
-        path = self._model.trovaCammino(int(artistaID))
-        self._view.txt_result.controls.append(ft.Text(f"Cammino semplice di lunghezza massima", color="orange"))
+        nodoStart = self._model.getClienteById(idCliente)
+
+        path = self._model.bestPath(nodoStart)
+        self._view.txt_result.controls.append(ft.Text("Cammino semplice di lunghezza massima"))
+        tot = 0
         for n in path:
-            self._view.txt_result.controls.append(ft.Text(f"--> {n}", color="orange"))
+            tot += n.fatturatoTotale
+            self._view.txt_result.controls.append(ft.Text(f"--> {n}   | fatturato Totale: {n.fatturatoTotale}"))
+
+        self._view.txt_result.controls.append(ft.Text(f"Numero archi del cammino: {len(path)}", color="blue"))
+        self._view.txt_result.controls.append(ft.Text(f"Fatturato complessivo: {tot}", color="blue"))
+
         self._view.update_page()

@@ -1,173 +1,137 @@
 import networkx as nx
 from database.DAO import DAO
 
-
 class Model:
     def __init__(self):
         self._grafo = nx.DiGraph()
 
+    def getCountries(self):
+        return DAO.getCountries()
 
-    def getGeneri(self):
-        return DAO.getGeneri()
+    def getClienteById(self, customerId):
+        for c in self._grafo.nodes:
+            if str(c.CustomerId) == str(customerId):
+                return c
+        return None
+    def fillClienti(self):
+        return list(self._grafo.nodes)
 
-    def getArtisti(self, genereID):
-        return DAO.getArtisti(genereID)
-
-
-    def buildGraph(self,genereID):
+    def buildGraph(self,country):
         self._grafo.clear()
-        artisti = []
-        for a in DAO.getNodes(genereID):
-            artisti.append(a)
-        self._grafo.add_nodes_from(artisti)
+        nodi = []
+        for c in DAO.getNodes(country):
+            nodi.append(c)
+        self._grafo.add_nodes_from(nodi)
+        fatturato = DAO.getFatturato(country)  # conviene avere già il dizionario
+        for c in nodi:
+            c.fatturatoTotale = fatturato.get(c.CustomerId,0.0)
 
-        self.addEdges(genereID)
+        self.addEdges_con_query(country)
+        # se nel DAO avessi restituito le tuple (CustomerId, fatturato)
+        #fatturatoList = DAO.getFatturato(country)  # lista di tuple
+        #fatturatoMap = {}
+        #for tupla in fatturatoList:
+         #   fatturatoMap[tupla[0]] = tupla[1]
 
-    def addEdges(self, genereID):
-
-        acquisti = DAO.getAcquistiClienti(genereID)
-        # CustomerId = set( ArtistId_1, ....)
-        diz = {}
-        for acq in acquisti:
-            if acq[0] not in diz:
-                diz[acq[0]] = set()
-            diz[acq[0]].add(acq[1])
+        #for c in nodi:
+         #   c.fatturatoTotale = fatturatoMap.get(c.CustomerId, 0.0)
 
 
-        pop = dict()
-        popolarita = DAO.getPopolarita(genereID)
-        for p in popolarita:
-            if p[0] not in pop:
-                pop[p[0]] = int(p[1])
+    def addEdges_con_query(self,country):
+        coppie = DAO.getCoppie(country)
+        nodi = list(self._grafo.nodes)
+        for i in range(len(nodi)):
+            for j in range(i+1, len(nodi)):
+                cliente1 = nodi[i]
+                cliente2 = nodi[j]
+                for  c1, c2 in coppie:
+                    if (cliente1.CustomerId == c1 and cliente2.CustomerId == c2) or (cliente2.CustomerId == c1 and cliente1.CustomerId == c2):
+                        fatturato1 = cliente1.fatturatoTotale
+                        fatturato2 = cliente2.fatturatoTotale
+                        if fatturato1 > fatturato2:
+                            self._grafo.add_edge(cliente1, cliente2, weight=fatturato2+fatturato1)
+                        elif fatturato1 < fatturato2:
+                            self._grafo.add_edge(cliente2, cliente1, weight=fatturato1 + fatturato2)
+                        else:
+                            self._grafo.add_edge(cliente1, cliente2, weight=fatturato1 + fatturato2)
+                            self._grafo.add_edge(cliente2, cliente1, weight=fatturato1 + fatturato2)
+
+    # ========= LOGICA IN PYTHON PER AGGIUNGERE ARCHI CON PESI ===============
+    def addEdges_con_pyhton(self, country):
+        righe = DAO.getArtistiPerCliente(country)
+
+        # costruisco mappa CustomerId -> set di ArtistId
+        mappaArtisti = {}
+        for customerId, artistId in righe:
+            if customerId not in mappaArtisti:
+                mappaArtisti[customerId] = set()
+            mappaArtisti[customerId].add(artistId)
 
         nodi = list(self._grafo.nodes)
         for i in range(len(nodi)):
-            for j in range(i+1,len(nodi)):   # evito i duplicati con a1 < a2
-                a1 = nodi[i]
-                a2  = nodi[j]
+            for j in range(i + 1, len(nodi)):
+                cliente1 = nodi[i]
+                cliente2 = nodi[j]
 
-                comune =False
-                for c in diz.keys():
-                    if a1.ArtistId in diz[c] and a2.ArtistId in diz[c]:
-                        comune = True
-                        break
-                if comune:
-                    # posso aggiungere l'arco tra gli artisti a1 e a2
-                    popA1 = pop.get(a1.ArtistId, 0)
-                    popA2 = pop.get(a2.ArtistId, 0)
-                    peso = popA1+popA2
+                artisti1 = mappaArtisti.get(cliente1.CustomerId, set())
+                artisti2 = mappaArtisti.get(cliente2.CustomerId, set())
 
-                    if popA1 > popA2:
-                        self._grafo.add_edge(a1,a2,weight=peso)
-                    elif popA2 > popA1:
-                        self._grafo.add_edge(a2, a1, weight=peso)
+                if len(artisti1 & artisti2) > 0:  # intersezione non vuota
+                    fatturato1 = cliente1.fatturatoTotale
+                    fatturato2 = cliente2.fatturatoTotale
+
+                    if fatturato1 > fatturato2:
+                        self._grafo.add_edge(cliente1, cliente2, weight=fatturato1 + fatturato2)
+                    elif fatturato1 < fatturato2:
+                        self._grafo.add_edge(cliente2, cliente1, weight=fatturato1 + fatturato2)
                     else:
-                        self._grafo.add_edge(a1, a2, weight=peso)
-                        self._grafo.add_edge(a2, a1, weight=peso)
+                        self._grafo.add_edge(cliente1, cliente2, weight=fatturato1 + fatturato2)
+                        self._grafo.add_edge(cliente2, cliente1, weight=fatturato1 + fatturato2)
 
+# ===========================================================
 
-    def getNumNodi(self):
-        return len(self._grafo.nodes)
+    def getPiuInfluente(self):
+        res=[]
+        for c in self._grafo.nodes:
+            pesoUscenti= 0
+            pesoEntranti=0
+            for u,v ,data in self._grafo.out_edges(c,data=True):
+                pesoUscenti += data["weight"]
+            for u,v ,data in self._grafo.in_edges(c,data=True):
+                pesoEntranti += data["weight"]
+            res.append((c, pesoUscenti-pesoEntranti))
+        res.sort(key=lambda x: x[1], reverse=True)
+
+        lista=[]
+        for u,v,data in self._grafo.edges(data=True):
+            lista.append((u,v,data["weight"]))
+        lista.sort(key=lambda x: x[2], reverse=True)
+        return res[0], lista[:5]
+
     def getNumArchi(self):
         return len(self._grafo.edges)
 
-
-    def getMaggioreInfluenza(self):
-        res = []
-        for a in self._grafo.nodes:
-            pesoUscenti=0
-            pesoEntranti=0
-            for u,v,data in self._grafo.out_edges(a,data=True):
-                pesoUscenti += data["weight"]
-            for u,v,data in self._grafo.in_edges(a,data=True):
-                pesoEntranti +=data['weight']
-            res.append((a, pesoUscenti-pesoEntranti))
-        res.sort(key=lambda x:x[1], reverse=True)
-        return res[0]
-
-    def archiPesati(self):
-        res=[]
-        for u,v, data in self._grafo.edges(data=True):
-            res.append((u, v, data["weight"]))
-        res.sort(key=lambda x:x[2], reverse=True)
-        return res[:5]
+    def getNumNodi(self):
+        return len(self._grafo.nodes)
 
 
+    # =============== RICORSIONE =========================
+    # Cammino semplice di lunghezza massima a partire da un nodo iniziale
+    # fatturato decrescente
+    # un nodo può essere visitato solo una volta !! (cammino semplice)
+    def bestPath(self,nodoStart):
+        self._bestPath = []
+        self._ricorsione(nodoStart, [nodoStart], nodoStart.fatturatoTotale)
 
-    def trovaCammino(self, artistID):
-        nodoStart = None
-        for n in self._grafo.nodes:
-            if n.ArtistId == artistID:
-                nodoStart = n
-                break
-        self._bestPath = [] # il più lungo
-
-        self._ricorsione(nodoStart, [nodoStart], 0 )
         return self._bestPath
-
-    def _ricorsione(self, nodoStart, parziale, ultimoPeso):
-        # cammino semplice = OGNI NODO è VISITATO UNA VOLTA SOLA
-
-        if len(parziale) > len(self._bestPath):
+    def _ricorsione(self,nodoCorrente, parziale, ultimoFatturato ):
+        if len(parziale) >len(self._bestPath):
             self._bestPath = list(parziale)
 
-        for vicino in self._grafo.successors(nodoStart):
-            if vicino not in parziale:
-                peso = self._grafo[nodoStart][vicino]["weight"]
-                if peso > ultimoPeso:
-                    parziale.append(vicino)
-
-                    self._ricorsione(vicino, parziale, peso)
+        for c in self._grafo.successors(nodoCorrente):
+            if c not in parziale:
+                if c.fatturatoTotale <= ultimoFatturato:
+                    parziale.append(c)
+                    self._ricorsione(c, parziale, c.fatturatoTotale)
                     parziale.pop()
 
-# data1 == data2   -> date uguali
-# data1 != data2   -> date diverse
-# data1 > data2    -> data1 è successiva
-# data1 < data2    -> data1 è precedente
-# data1 >= data2   -> successiva o uguale
-# data1 <= data2   -> precedente o uguale
-
-# if data_inizio <= data <= data_fine:
-#     print("Data valida")
-
-# differenza = data2 - data1
-
-# Giorni
-# differenza.days
-
-# Secondi
-# differenza.total_seconds()
-
-# ===========================================
-# ESTRARRE ANNO, MESE, GIORNO
-# ===========================================
-
-# data.year
-# data.month
-# data.day
-
-# data.hour
-# data.minute
-# data.second
-
-# ===========================================
-# CONTROLLI PIÙ USATI
-# ===========================================
-
-# Se la data è nel passato
-# if data < datetime.now():
-
-# Se la data è nel futuro
-# if data > datetime.now():
-
-# Se è oggi
-# if data.date() == datetime.today().date():
-
-# Se anno maggiore di 2000
-# if data.year > 2000:
-
-# Se il mese è gennaio
-# if data.month == 1:
-
-# Se il giorno è 15
-# if data.day == 15:
